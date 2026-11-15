@@ -4,11 +4,11 @@
  	self.xmlSectionList = { }
  	self.spectreList = { }
  	self.timelessData = { jewelType = { }, conquerorType = { }, devotionVariant1 = 1, devotionVariant2 = 1, jewelSocket = { }, fallbackWeightMode = { }, searchList = "", searchListFallback = "", searchResults = { }, sharedResults = { } }
-+	self.timelessPlannerState = { jewelTypeId = 1, conquerorId = 1, socketId = nil, coreOutcomes = { }, wanted = { }, unwanted = { }, results = { }, checkedSeeds = { }, page = 1 }
++	self.timelessPlannerState = { jewelTypeId = 1, conquerorId = 1, socketId = nil, coreOutcomes = { }, results = { }, checkedSeeds = { }, page = 1 }
  	self.viewMode = "TREE"
  	self.characterLevel = m_min(m_max(main.defaultCharLevel or 1, 1), 100)
  	self.targetVersion = liveTargetVersion
-@@ -991,6 +992,33 @@
+@@ -991,6 +992,25 @@
  			self.timelessData.socketFilterDistance = tonumber(child.attrib.socketFilterDistance) or 0
  			self.timelessData.searchList = child.attrib.searchList
  			self.timelessData.searchListFallback = child.attrib.searchListFallback
@@ -18,8 +18,6 @@
 +				conquerorId = tonumber(child.attrib.conquerorId) or 1,
 +				socketId = tonumber(child.attrib.jewelSocketId),
 +				coreOutcomes = { },
-+				wanted = { },
-+				unwanted = { },
 +				results = { },
 +				checkedSeeds = { },
 +				page = 1,
@@ -31,18 +29,12 @@
 +						outcomes[id] = true
 +					end
 +					self.timelessPlannerState.coreOutcomes[tonumber(plannerChild.attrib.nodeId)] = outcomes
-+				elseif plannerChild.elem == "Path" and plannerChild.attrib.stat then
-+					if plannerChild.attrib.polarity == "desired" then
-+						self.timelessPlannerState.wanted[plannerChild.attrib.stat] = true
-+					elseif plannerChild.attrib.polarity == "undesired" then
-+						self.timelessPlannerState.unwanted[plannerChild.attrib.stat] = true
-+					end
 +				end
 +			end
  		end
  	end
  end
-@@ -1075,6 +1103,40 @@
+@@ -1075,6 +1095,34 @@
  		}
  	}
  	t_insert(xml, timelessData)
@@ -71,12 +63,6 @@
 +					},
 +				})
 +			end
-+		end
-+		for stat in pairs(planner.wanted or { }) do
-+			t_insert(plannerElem, { elem = "Path", attrib = { stat = stat, polarity = "desired" } })
-+		end
-+		for stat in pairs(planner.unwanted or { }) do
-+			t_insert(plannerElem, { elem = "Path", attrib = { stat = stat, polarity = "undesired" } })
 +		end
 +		t_insert(xml, plannerElem)
 +	end

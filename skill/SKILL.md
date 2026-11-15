@@ -1,6 +1,6 @@
 ---
 name: pob-timeless-jewel
-description: 用自然语言查询/切换 PoE1 永恒珠宝。必须通过 PoeCharm3 以中文 PoB 运行，查询/预览结束后保持 PoB 打开。用户在 PoB 天赋树点亮珠宝孔和天赋后，AI 先确认珠宝类型/征服者、每个核心天赋可接受结果、过路点出现/不出现属性，再调用 PoB 精准规划插件搜索；结果可查看编号、下一个/上一个，并直接在 PoB 天赋树中预览。
+description: 用自然语言查询/切换 PoE1 永恒珠宝。必须通过 PoeCharm3 以中文 PoB 运行，查询/预览结束后保持 PoB 打开。用户在 PoB 天赋树点亮珠宝孔和天赋后，AI 先确认珠宝类型/征服者、每个核心天赋可接受结果，再调用 PoB 精准规划插件搜索；结果可查看编号、下一个/上一个，并直接在 PoB 天赋树中预览。
 ---
 
 # PoB 永恒珠宝自然语言查询
@@ -52,11 +52,6 @@ $P = "$env:USERPROFILE\.dsh\skills\pob-timeless-jewel\scripts\planner.cmd"
     - `kind="addition"`：附加型，`id` 以 `add:` 开头；
     - `id` 可能已经是 `add:...`，写入 `coreOutcomes` 时直接使用该值；
 - `keystone`：已点亮 keystone；
-- `path`：已点亮过路小点；
-- `wantedPathOptions`：过路点**可以出现**的主属性，只包含当前类型/孔位实际可达的替换结果；
-- `unwantedPathOptions`：过路点可能出现的全部属性，只包含当前类型/孔位实际可达的替换结果；
-- `pathOptions`：以上两者的合并列表（兼容字段；优先使用前两个）；
-- `wanted` / `unwanted`：当前配置；
 - `resultCount` / `firstSeeds` / `firstResults` / `previewSeed`；
   - `firstResults[]` 含 `seed`、`coreHits`、`coreTotal`、`socketId`。
 
@@ -83,7 +78,7 @@ $P = "$env:USERPROFILE\.dsh\skills\pob-timeless-jewel\scripts\planner.cmd"
   灰烬、冰霜与风暴（Ash, Frost and Storm）
   死灵之契（Necromantic Aegis）
   ```
-- 核心替换结果、过路点属性用中文词缀；结果原名可放括号：
+- 核心替换/附加结果用中文词缀；结果原名可放括号：
   ```text
   1. 诅咒效果（Ancient Hex）
   2. 火焰伤害（Flesh to Flames）
@@ -95,8 +90,6 @@ $P = "$env:USERPROFILE\.dsh\skills\pob-timeless-jewel\scripts\planner.cmd"
   征服者：多里亚尼（腐化之魂）
   珠宝孔：Basic Jewel Socket [6230]
   核心：灰烬、冰霜与风暴 → 诅咒效果
-  过路点出现：无
-  过路点不出现：火焰伤害
   确认开始搜索？
   ```
 
@@ -109,10 +102,9 @@ $P = "$env:USERPROFILE\.dsh\skills\pob-timeless-jewel\scripts\planner.cmd"
 3. 用户切换珠宝类型时：
    - 先只 `configure` 新的 `jewelTypeId` / `conquerorId`；
    - 再重新 `scan`；
-   - 然后才配置核心和过路点；
+   - 然后才配置核心；
 4. 搜索返回 0 时，先检查：
    - 核心是否要求了多个不可能同时出现的结果；
-   - 过路点属性是否过严；
    - 当前类型/孔位是否正确；
 5. 预览后不要重新假设状态，直接 `scan` 或让用户继续“下一个/上一个”。
 
@@ -144,8 +136,8 @@ $P = "$env:USERPROFILE\.dsh\skills\pob-timeless-jewel\scripts\planner.cmd"
 
 不要替用户默认选择；用户明确说“任意/你决定”才使用默认。
 
-> 用户切换珠宝类型时，必须清空之前类型下的 `coreOutcomes`、`wanted`、`unwanted` 和搜索结果，不能把旧类型的替换/附加/过路点属性带到新类型，避免不同珠宝属性互相干扰。
-> 通过 `configure` 切换类型时，不要同时传旧的 `coreOutcomes` 或 `wanted`/`unwanted`；应先只传 `jewelTypeId`（可带 `conquerorId`），让面板清空，再重新选择核心和过路点。
+> 用户切换珠宝类型时，必须清空之前类型下的 `coreOutcomes` 和搜索结果，不能把旧类型的替换/附加结果带到新类型，避免不同珠宝属性互相干扰。
+> 通过 `configure` 切换类型时，不要同时传旧的 `coreOutcomes`；应先只传 `jewelTypeId`（可带 `conquerorId`），让面板清空，再重新选择核心。
 
 ### 第 3 步：确认核心天赋替换属性
 
@@ -171,16 +163,7 @@ $P = "$env:USERPROFILE\.dsh\skills\pob-timeless-jewel\scripts\planner.cmd"
 
 只使用 `options` 中出现的 `id`，不要编造结果。
 
-### 第 4 步：确认过路点属性
-
-分别展示当前珠宝类型/孔位实际可达的属性，不要使用全量词缀表：
-
-- 过路点出现属性：从 `wantedPathOptions` 选择（每个被替换过路点的主属性必须在这里面）；
-- 过路点不出现属性：从 `unwantedPathOptions` 选择（任意属性命中就淘汰）。
-
-两边都可以为空。用户说“没有/不限制”就传空数组。
-
-### 第 5 步：生成配置并同步面板
+### 第 4 步：生成配置并同步面板
 
 把确认结果写成 JSON 文件，例如：
 
@@ -191,9 +174,7 @@ $P = "$env:USERPROFILE\.dsh\skills\pob-timeless-jewel\scripts\planner.cmd"
   "socketId": 36634,
   "coreOutcomes": {
     "36949": ["vaal_notable_x", "vaal_notable_y"]
-  },
-  "wanted": ["火焰伤害", "力量"],
-  "unwanted": ["敏捷"]
+  }
 }
 ```
 
@@ -207,17 +188,16 @@ $P = "$env:USERPROFILE\.dsh\skills\pob-timeless-jewel\scripts\planner.cmd"
 
 - 更新 `build.timelessPlannerState`；
 - 重新打开/刷新 PoB 精准规划面板；
-- 让用户看到类型、征服者、核心、Path 的最新配置。
+- 让用户看到类型、征服者、核心的最新配置。
 
-### 第 6 步：确认后搜索
+### 第 5 步：确认后搜索
 
 先向用户确认摘要：
 
 ```text
 珠宝类型 / 征服者 / 孔位
 核心：...
-过路点出现属性：...
-过路点不出现属性：...
+
 确认开始搜索？
 ```
 
@@ -241,7 +221,7 @@ $P = "$env:USERPROFILE\.dsh\skills\pob-timeless-jewel\scripts\planner.cmd"
   - “下一个”
   - “上一个”
 
-### 第 7 步：自然语言切换珠宝
+### 第 6 步：自然语言切换珠宝
 
 用户说“查看编号 xxx”：
 
@@ -278,9 +258,7 @@ $P = "$env:USERPROFILE\.dsh\skills\pob-timeless-jewel\scripts\planner.cmd"
   "jewelTypeId": 1,
   "conquerorId": 2,
   "socketId": 36634,
-  "coreOutcomes": { "36949": ["outcomeId1", "outcomeId2"] },
-  "wanted": ["火焰伤害"],
-  "unwanted": ["敏捷"]
+  "coreOutcomes": { "36949": ["outcomeId1", "outcomeId2"] }
 }
 ```
 
@@ -290,7 +268,7 @@ $P = "$env:USERPROFILE\.dsh\skills\pob-timeless-jewel\scripts\planner.cmd"
 - `coreOutcomes`：`nodeId -> [option.id, ...]`
   - 替换型直接用结果 id；
   - 附加型使用 `add:...` 前缀，保持与替换型区分；
-- `wanted`/`unwanted`：`pathOptions[].label`，也接受 key
+
 
 未提供的字段保持当前状态。
 
@@ -300,7 +278,7 @@ $P = "$env:USERPROFILE\.dsh\skills\pob-timeless-jewel\scripts\planner.cmd"
 | --- | --- |
 | `No lit jewel socket` | 先在天赋树点亮珠宝孔 |
 | `core options` 为空 | 这个核心在当前孔/类型下没有可达替换或附加结果 |
-| `No search results` | 条件太严，先放宽 Path 或减少核心多选 |
+| `No search results` | 条件太严，先减少核心多选或更换珠宝类型 |
 | `Planner state missing` | 先打开一次精准规划面板 |
 | bridge 连接失败 | 先运行 `pob-bd-builder` 的 `start-cn.cmd` |
 

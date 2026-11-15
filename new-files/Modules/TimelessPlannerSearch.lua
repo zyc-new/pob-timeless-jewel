@@ -13,18 +13,6 @@ local next = next
 
 local TimelessPlannerSearch = { }
 
-local function getPrimaryStat(node)
-	if node.sortedStats and node.sortedStats[1] then
-		return node.sortedStats[1]
-	end
-	if node.stats then
-		for key in pairs(node.stats) do
-			return key
-		end
-	end
-	return nil
-end
-
 local function getLegionNode(treeData, localId)
 	if not localId or localId < data.timelessJewelAdditions then
 		return nil
@@ -123,104 +111,6 @@ local function getCoreResults(seed, nodeId, socketId, jewelType, treeData, isAby
 	return results
 end
 
-local function pathMatches(replacements, wantedStats, unwantedStats)
-	for _, node in ipairs(replacements) do
-		local primary = getPrimaryStat(node)
-		if next(wantedStats) and (not primary or not wantedStats[primary]) then
-			return false
-		end
-		for stat in pairs(node.stats or { }) do
-			if unwantedStats[stat] then
-				return false
-			end
-		end
-	end
-	return true
-end
-
---- Run a hard-constraint search.
---- config = {
----   jewelType = { id=..., name=... },
----   socketId = number,
----   coreNodes = { { nodeId=..., outcomes={ [legionId]=true } }, ... },
----   pathNodes = { nodeId, ... },
----   wantedStats = { [statKey]=true },
----   unwantedStats = { [statKey]=true },
---- }
---- Return the replacement nodes that can actually occur on a specific
---- notable/socket for a jewel type. Used by the planner's outcome picker so it
---- only offers reachable results.
-function TimelessPlannerSearch.GetCoreOutcomes(build, jewelType, socketId, nodeId)
-	local treeData = build.spec.tree
-	local isAbyss = jewelType.id >= 7
-	local zorathPath = jewelType.id == 11 and build.spec:GetShortestPathToClassStart(socketId) or nil
-	if jewelType.id == 11 and not zorathPath then
-		return { }
-	end
-
-	local seedMultiplier = jewelType.id == 5 and 20 or 1
-	local seen = { }
-	local outcomes = { }
-	for seed = data.timelessJewelSeedMin[jewelType.id] * seedMultiplier,
-			data.timelessJewelSeedMax[jewelType.id] * seedMultiplier,
-			seedMultiplier do
-		local abyssMods
-		if isAbyss then
-			abyssMods = data.readAbyssJewelLUT(seed, socketId, jewelType.id, zorathPath, build.spec.curAscendClassName)
-		end
-		for _, outcome in ipairs(getCoreResults(seed, nodeId, socketId, jewelType, treeData, isAbyss, abyssMods)) do
-			if outcome.key and not seen[outcome.key] then
-				seen[outcome.key] = true
-				outcomes[#outcomes + 1] = outcome
-			end
-		end
-	end
-	table.sort(outcomes, function(a, b)
-		return (a.dn or a.id) < (b.dn or b.id)
-	end)
-	return outcomes
-end
-
---- Return the stat keys that can actually occur on the selected path nodes
---- for this jewel type/socket. Wanted uses primary stats; unwanted uses all
---- stats of replacement outcomes.
-function TimelessPlannerSearch.GetPathStatOptions(build, jewelType, socketId, pathNodeIds)
-	local wanted = { }
-	local unwanted = { }
-	if not pathNodeIds or #pathNodeIds == 0 then
-		return wanted, unwanted
-	end
-	local treeData = build.spec.tree
-	local isAbyss = jewelType.id >= 7
-	local zorathPath = jewelType.id == 11 and build.spec:GetShortestPathToClassStart(socketId) or nil
-	if jewelType.id == 11 and not zorathPath then
-		return wanted, unwanted
-	end
-	local seedMultiplier = jewelType.id == 5 and 20 or 1
-	for seed = data.timelessJewelSeedMin[jewelType.id] * seedMultiplier,
-			data.timelessJewelSeedMax[jewelType.id] * seedMultiplier,
-			seedMultiplier do
-		local abyssMods
-		if isAbyss then
-			abyssMods = data.readAbyssJewelLUT(seed, socketId, jewelType.id, zorathPath, build.spec.curAscendClassName)
-		end
-		for _, nodeId in ipairs(pathNodeIds) do
-			for _, outcome in ipairs(getCoreResults(seed, nodeId, socketId, jewelType, treeData, isAbyss, abyssMods)) do
-				if outcome.kind == "replacement" then
-					local primary = getPrimaryStat(outcome)
-					if primary then
-						wanted[primary] = true
-					end
-					for stat in pairs(outcome.stats or { }) do
-						unwanted[stat] = true
-					end
-				end
-			end
-		end
-	end
-	return wanted, unwanted
-end
-
 function TimelessPlannerSearch.Run(build, config)
 	local treeData = build.spec.tree
 	local jewelType = config.jewelType
@@ -232,10 +122,6 @@ function TimelessPlannerSearch.Run(build, config)
 	end
 
 	local coreNodes = config.coreNodes or { }
-	local pathNodes = config.pathNodes or { }
-	local wantedStats = config.wantedStats or { }
-	local unwantedStats = config.unwantedStats or { }
-	local hasPathConstraint = next(wantedStats) or next(unwantedStats)
 
 	local seedMultiplier = jewelType.id == 5 and 20 or 1
 	local results = { }
@@ -267,23 +153,6 @@ function TimelessPlannerSearch.Run(build, config)
 		end
 		if coreTotal > 0 and coreHits == 0 then
 			ok = false
-		end
-
-		-- Path: every replacement point's primary stat must be in wanted,
-		-- and no replacement point may contain an unwanted stat.
-		if ok and hasPathConstraint then
-			for _, nodeId in ipairs(pathNodes) do
-				local replacements = { }
-				for _, outcome in ipairs(getCoreResults(seed, nodeId, socketId, jewelType, treeData, isAbyss, abyssMods)) do
-					if outcome.kind == "replacement" then
-						replacements[#replacements + 1] = outcome
-					end
-				end
-				if #replacements > 0 and not pathMatches(replacements, wantedStats, unwantedStats) then
-					ok = false
-					break
-				end
-			end
 		end
 
 		if ok then

@@ -213,7 +213,7 @@ local function coreOutcomeSummary(build, state, nodeId)
 	return labels[1] .. " / " .. labels[2] .. " 等 " .. #labels .. " 项"
 end
 
--- Generic scrollable list used for core nodes, path stats and results.
+-- Generic scrollable list used for core nodes and results.
 local PlannerListClass = newClass("TimelessPlannerList", "ListControl", function(self, anchor, rect, list)
 	self.ListControl(anchor, rect, 18, true, false, list)
 end)
@@ -295,8 +295,7 @@ function Planner.Open(treeTab)
 		conquerorId = 1,
 		socketId = nil,
 		coreOutcomes = { },
-		wanted = { },
-		unwanted = { },
+
 		results = { },
 		checkedSeeds = { },
 		page = 1,
@@ -308,7 +307,6 @@ function Planner.Open(treeTab)
 	local selectedSocketId = state.socketId
 	local coreRows = { }
 	local keystoneRows = { }
-	local pathRows = { }
 
 	local function getJewelSocketList()
 		local sockets = { }
@@ -357,10 +355,10 @@ function Planner.Open(treeTab)
 	selectedConqueror = getConqueror(selectedType.id, state.conquerorId)
 
 	local function getLitNodes(socketId)
-		local core, keystones, path = { }, { }, { }
+		local core, keystones = { }, { }
 		local socketNode = treeData.nodes[socketId]
 		if not socketNode or not socketNode.nodesInRadius then
-			return core, keystones, path
+			return core, keystones
 		end
 		local radius = socketNode.nodesInRadius[3] or { }
 		local granted = build.calcsTab.mainEnv.grantedPassives or { }
@@ -372,23 +370,20 @@ function Planner.Open(treeTab)
 					t_insert(keystones, { label = node.dn, node = node })
 				elseif node.isNotable then
 					t_insert(core, { label = node.dn, node = node })
-				elseif node.type == "Normal" and not node.isJewelSocket then
-					t_insert(path, { label = node.dn, node = node })
 				end
 			end
 		end
 		sortedByLabel(core)
 		sortedByLabel(keystones)
-		sortedByLabel(path)
-		return core, keystones, path
+		return core, keystones
 	end
 
 	local function refreshNodes()
 		if not selectedSocketId then
-			coreRows, keystoneRows, pathRows = { }, { }, { }
+			coreRows, keystoneRows = { }, { }
 			return
 		end
-		coreRows, keystoneRows, pathRows = getLitNodes(selectedSocketId)
+		coreRows, keystoneRows = getLitNodes(selectedSocketId)
 	end
 	refreshNodes()
 
@@ -428,51 +423,10 @@ function Planner.Open(treeTab)
 		end
 	end
 
-	local function refreshPathLists()
-		local wantedList, unwantedList = { }, { }
-		for key in pairs(state.wanted) do
-			t_insert(wantedList, { label = statLabel(key), key = key })
-		end
-		for key in pairs(state.unwanted) do
-			t_insert(unwantedList, { label = statLabel(key), key = key })
-		end
-		sortedByLabel(wantedList)
-		sortedByLabel(unwantedList)
-		if controls.wantedList then
-			controls.wantedList.list = wantedList
-			controls.wantedList:SelectIndex(1)
-		end
-		if controls.unwantedList then
-			controls.unwantedList.list = unwantedList
-			controls.unwantedList:SelectIndex(1)
-		end
-	end
-
-	-- Only offer path stats that can actually occur on a replacement in the
-	-- current jewel type/socket. Additions are intentionally excluded from
-	-- path constraints (they are reported on core rows instead).
-	local pathNodeIds = { }
-	for _, row in ipairs(pathRows) do
-		t_insert(pathNodeIds, row.node.id)
-	end
-	local wantedKeys, unwantedKeys = TimelessPlannerSearch.GetPathStatOptions(build, selectedType, selectedSocketId, pathNodeIds)
-	local wantedPathOptions = { { label = "选择属性...", key = nil } }
-	local unwantedPathOptions = { { label = "选择属性...", key = nil } }
-	for key in pairs(wantedKeys) do
-		t_insert(wantedPathOptions, { label = statLabel(key), key = key })
-	end
-	for key in pairs(unwantedKeys) do
-		t_insert(unwantedPathOptions, { label = statLabel(key), key = key })
-	end
-	t_sort(wantedPathOptions, function(a, b) return a.label < b.label end)
-	t_sort(unwantedPathOptions, function(a, b) return a.label < b.label end)
-
 	-- Top controls
 	controls.typeLabel = new("LabelControl", { "TOPLEFT", nil, "TOPLEFT" }, { 20, 18, 0, 16 }, "^7珠宝类型:")
 	controls.typeSelect = new("DropDownControl", { "TOPLEFT", nil, "TOPLEFT" }, { 100, 16, 210, 20 }, jewelTypes, function(index, value)
 		state.coreOutcomes = { }
-		state.wanted = { }
-		state.unwanted = { }
 		state.results = { }
 		state.checkedSeeds = { }
 		state.page = 1
@@ -502,8 +456,6 @@ function Planner.Open(treeTab)
 	controls.socketSelect = new("DropDownControl", { "TOPLEFT", nil, "TOPLEFT" }, { 710, 16, 250, 20 }, sockets, function(index, value)
 		if state.socketId ~= value.id then
 			state.coreOutcomes = { }
-			state.wanted = { }
-			state.unwanted = { }
 			state.results = { }
 			state.checkedSeeds = { }
 			state.page = 1
@@ -651,42 +603,6 @@ function Planner.Open(treeTab)
 		controls.coreEmpty = new("LabelControl", { "TOPLEFT", nil, "TOPLEFT" }, { 30, 104, 0, 16 }, "^8没有已点亮、半径内的核心天赋")
 	end
 
-	-- Path: wanted / unwanted
-	controls.wantedHeader = new("LabelControl", { "TOPLEFT", nil, "TOPLEFT" }, { 840, 80, 0, 16 }, "^7过路点出现属性")
-	controls.wantedSelect = new("DropDownControl", { "TOPLEFT", nil, "TOPLEFT" }, { 840, 100, 288, 20 }, wantedPathOptions, function(index, value)
-		if value and value.key then
-			state.wanted[value.key] = true
-			refreshPathLists()
-			controls.wantedSelect:SetSel(1, true)
-		end
-	end)
-	controls.wantedList = newList(nil, { 840, 130, 292, 72 }, { })
-	controls.removeWantedButton = new("ButtonControl", { "TOPLEFT", nil, "TOPLEFT" }, { 840, 208, 80, 20 }, "移除选中", function()
-		local value = controls.wantedList.selValue
-		if value then
-			state.wanted[value.key] = nil
-			refreshPathLists()
-		end
-	end)
-
-	controls.unwantedHeader = new("LabelControl", { "TOPLEFT", nil, "TOPLEFT" }, { 840, 238, 0, 16 }, "^7过路点不出现属性")
-	controls.unwantedSelect = new("DropDownControl", { "TOPLEFT", nil, "TOPLEFT" }, { 840, 258, 288, 20 }, unwantedPathOptions, function(index, value)
-		if value and value.key then
-			state.unwanted[value.key] = true
-			refreshPathLists()
-			controls.unwantedSelect:SetSel(1, true)
-		end
-	end)
-	controls.unwantedList = newList(nil, { 840, 288, 292, 72 }, { })
-	controls.removeUnwantedButton = new("ButtonControl", { "TOPLEFT", nil, "TOPLEFT" }, { 840, 366, 80, 20 }, "移除选中", function()
-		local value = controls.unwantedList.selValue
-		if value then
-			state.unwanted[value.key] = nil
-			refreshPathLists()
-		end
-	end)
-	controls.pathHint = new("LabelControl", { "TOPLEFT", nil, "TOPLEFT" }, { 840, 392, 310, 16 }, "^8只看替换型节点；固定追加不参与")
-
 	-- Results
 	controls.resultsHeader = new("LabelControl", { "TOPLEFT", nil, "TOPLEFT" }, { 20, 416, 0, 16 }, "^7搜索结果")
 	controls.resultsInfo = new("LabelControl", { "TOPLEFT", nil, "TOPLEFT" }, { 120, 416, 0, 16 }, "^8单击勾选 · 双击预览")
@@ -737,18 +653,15 @@ function Planner.Open(treeTab)
 		Planner.BuyPage(state, controls, selectedType, selectedConqueror)
 	end)
 	controls.searchButton = new("ButtonControl", { "TOPLEFT", nil, "TOPLEFT" }, { 664, 636, 120, 20 }, "开始精准搜索", function()
-		Planner.RunSearch(build, selectedType, selectedConqueror, state, coreRows, pathRows, controls)
+		Planner.RunSearch(build, selectedType, selectedConqueror, state, coreRows, controls)
 	end)
 
 	controls.resetButton = new("ButtonControl", { "TOPLEFT", nil, "TOPLEFT" }, { 792, 636, 70, 20 }, "重置", function()
 		state.coreOutcomes = { }
-		state.wanted = { }
-		state.unwanted = { }
 		state.results = { }
 		state.checkedSeeds = { }
 		state.page = 1
 		refreshCoreLabels()
-		refreshPathLists()
 		Planner.RefreshResults(controls, state)
 	end)
 	controls.closeButton = new("ButtonControl", { "TOPLEFT", nil, "TOPLEFT" }, { 1080, 636, 80, 20 }, "关闭", function()
@@ -759,7 +672,6 @@ function Planner.Open(treeTab)
 
 	refreshCoreLabels()
 	refreshKeystoneInfo()
-	refreshPathLists()
 	Planner.RefreshResults(controls, state)
 
 	main:OpenPopup(1180, 700, "永恒珠宝精准规划", controls, nil, nil, "closeButton")
@@ -877,7 +789,7 @@ function Planner.RefreshResults(controls, state)
 	end
 end
 
-function Planner.RunSearch(build, jewelType, conqueror, state, coreRows, pathRows, controls)
+function Planner.RunSearch(build, jewelType, conqueror, state, coreRows, controls)
 	local coreNodes = { }
 	for _, row in ipairs(coreRows) do
 		local outcomes = state.coreOutcomes[row.node.id]
@@ -887,10 +799,6 @@ function Planner.RunSearch(build, jewelType, conqueror, state, coreRows, pathRow
 				outcomes = outcomes,
 			}
 		end
-	end
-	local pathNodes = { }
-	for _, row in ipairs(pathRows) do
-		pathNodes[#pathNodes + 1] = row.node.id
 	end
 	if not state.socketId then
 		controls.statusBar.label = "^1没有已点亮的珠宝孔"
@@ -902,9 +810,6 @@ function Planner.RunSearch(build, jewelType, conqueror, state, coreRows, pathRow
 		jewelType = jewelType,
 		socketId = state.socketId,
 		coreNodes = coreNodes,
-		pathNodes = pathNodes,
-		wantedStats = state.wanted,
-		unwantedStats = state.unwanted,
 	})
 	state.checkedSeeds = { }
 	state.page = 1
@@ -1218,10 +1123,10 @@ end
 
 local function getStateNodes(build, socketId)
 	local treeData = build.spec.tree
-	local core, keystones, path = { }, { }, { }
+	local core, keystones = { }, { }
 	local socketNode = treeData.nodes[socketId]
 	if not socketNode or not socketNode.nodesInRadius then
-		return core, keystones, path
+		return core, keystones
 	end
 	local radius = socketNode.nodesInRadius[3] or { }
 	local granted = build.calcsTab.mainEnv.grantedPassives or { }
@@ -1233,24 +1138,12 @@ local function getStateNodes(build, socketId)
 				t_insert(keystones, node)
 			elseif node.isNotable then
 				t_insert(core, node)
-			elseif node.type == "Normal" and not node.isJewelSocket then
-				t_insert(path, node)
 			end
 		end
 	end
 	table.sort(core, function(a, b) return (a.dn or "") < (b.dn or "") end)
 	table.sort(keystones, function(a, b) return (a.dn or "") < (b.dn or "") end)
-	table.sort(path, function(a, b) return (a.dn or "") < (b.dn or "") end)
-	return core, keystones, path
-end
-
-local function statKeyFromLabel(label)
-	for key, value in pairs(STAT_LABELS) do
-		if value == label then
-			return key
-		end
-	end
-	return label
+	return core, keystones
 end
 
 local function getPanelSocket(build, state)
@@ -1276,9 +1169,9 @@ function Planner.GetState(build)
 	local sockets, socketId = getPanelSocket(build, state)
 	local jewelType = jewelTypes[state.jewelTypeId] or jewelTypes[1]
 	local conqueror = getConqueror(jewelType.id, state.conquerorId)
-	local core, keystones, path = { }, { }, { }
+	local core, keystones = { }, { }
 	if socketId then
-		core, keystones, path = getStateNodes(build, socketId)
+		core, keystones = getStateNodes(build, socketId)
 	end
 
 	local coreResult = { }
@@ -1322,46 +1215,6 @@ function Planner.GetState(build)
 		})
 	end
 
-	local pathResult = { }
-	for _, node in ipairs(path) do
-		t_insert(pathResult, { id = node.id, name = node.dn })
-	end
-
-	local pathNodeIds = { }
-	for _, row in ipairs(path) do
-		t_insert(pathNodeIds, row.node.id)
-	end
-	local wantedKeys, unwantedKeys = TimelessPlannerSearch.GetPathStatOptions(build, jewelType, socketId, pathNodeIds)
-	local pathOptions = { }
-	local wantedPathOptions = { }
-	local unwantedPathOptions = { }
-	local seenPathKeys = { }
-	local function addPathOption(list, key)
-		local label = statLabel(key)
-		t_insert(list, { key = key, label = label })
-		if not seenPathKeys[key] then
-			seenPathKeys[key] = true
-			t_insert(pathOptions, { key = key, label = label })
-		end
-	end
-	for key in pairs(wantedKeys) do
-		addPathOption(wantedPathOptions, key)
-	end
-	for key in pairs(unwantedKeys) do
-		addPathOption(unwantedPathOptions, key)
-	end
-	table.sort(pathOptions, function(a, b) return a.label < b.label end)
-	table.sort(wantedPathOptions, function(a, b) return a.label < b.label end)
-	table.sort(unwantedPathOptions, function(a, b) return a.label < b.label end)
-
-	local wanted = { }
-	local unwanted = { }
-	for key in pairs(state.wanted or { }) do
-		t_insert(wanted, { key = key, label = statLabel(key) })
-	end
-	for key in pairs(state.unwanted or { }) do
-		t_insert(unwanted, { key = key, label = statLabel(key) })
-	end
 	local firstSeeds = { }
 	local firstResults = { }
 	for i = 1, m_min(10, #(state.results or { })) do
@@ -1385,12 +1238,6 @@ function Planner.GetState(build)
 		conquerors = conquerorTypes[jewelType.id],
 		core = coreResult,
 		keystone = keystoneResult,
-		path = pathResult,
-		pathOptions = pathOptions,
-		wantedPathOptions = wantedPathOptions,
-		unwantedPathOptions = unwantedPathOptions,
-		wanted = wanted,
-		unwanted = unwanted,
 		resultCount = #(state.results or { }),
 		firstSeeds = firstSeeds,
 		firstResults = firstResults,
@@ -1429,11 +1276,9 @@ function Planner.Configure(build, config)
 	if config.jewelTypeId then
 		local newTypeId = tonumber(config.jewelTypeId) or state.jewelTypeId
 		if newTypeId ~= state.jewelTypeId then
-			-- Core outcomes and path stats are type-specific; never keep stale
-			-- results from another jewel type.
+			-- Core outcomes are type-specific; never keep stale results from
+			-- another jewel type.
 			state.coreOutcomes = { }
-			state.wanted = { }
-			state.unwanted = { }
 			state.results = { }
 			state.checkedSeeds = { }
 			state.page = 1
@@ -1457,18 +1302,6 @@ function Planner.Configure(build, config)
 			state.coreOutcomes[tonumber(nodeId)] = set
 		end
 	end
-	if config.wanted then
-		state.wanted = { }
-		for _, value in ipairs(config.wanted) do
-			state.wanted[statKeyFromLabel(value)] = true
-		end
-	end
-	if config.unwanted then
-		state.unwanted = { }
-		for _, value in ipairs(config.unwanted) do
-			state.unwanted[statKeyFromLabel(value)] = true
-		end
-	end
 	Planner.Show(build)
 	return Planner.GetState(build)
 end
@@ -1484,7 +1317,7 @@ function Planner.Search(build)
 	end
 	state.socketId = socketId
 	local jewelType = jewelTypes[state.jewelTypeId] or jewelTypes[1]
-	local core, keystones, path = getStateNodes(build, socketId)
+	local core, keystones = getStateNodes(build, socketId)
 	local coreNodes = { }
 	for _, node in ipairs(core) do
 		local outcomes = state.coreOutcomes[node.id]
@@ -1492,17 +1325,10 @@ function Planner.Search(build)
 			t_insert(coreNodes, { nodeId = node.id, outcomes = outcomes })
 		end
 	end
-	local pathNodes = { }
-	for _, node in ipairs(path) do
-		t_insert(pathNodes, node.id)
-	end
 	state.results = TimelessPlannerSearch.Run(build, {
 		jewelType = jewelType,
 		socketId = socketId,
 		coreNodes = coreNodes,
-		pathNodes = pathNodes,
-		wantedStats = state.wanted,
-		unwantedStats = state.unwanted,
 	})
 	state.checkedSeeds = { }
 	state.page = 1
