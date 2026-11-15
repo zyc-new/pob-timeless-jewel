@@ -500,6 +500,14 @@ function Planner.Open(treeTab)
 
 	controls.socketLabel = new("LabelControl", { "TOPLEFT", nil, "TOPLEFT" }, { 640, 18, 0, 16 }, "^7珠宝孔")
 	controls.socketSelect = new("DropDownControl", { "TOPLEFT", nil, "TOPLEFT" }, { 710, 16, 250, 20 }, sockets, function(index, value)
+		if state.socketId ~= value.id then
+			state.coreOutcomes = { }
+			state.wanted = { }
+			state.unwanted = { }
+			state.results = { }
+			state.checkedSeeds = { }
+			state.page = 1
+		end
 		state.socketId = value.id
 		main:ClosePopup()
 		Planner.Open(treeTab)
