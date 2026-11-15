@@ -1,5 +1,7 @@
 # PoB Timeless Jewel Skill
 
+仓库：https://github.com/zyc-new/pob-timeless-jewel
+
 自然语言查询/切换永恒珠宝的 DSH 技能。
 
 ## 依赖
