@@ -111,6 +111,39 @@ local function getCoreResults(seed, nodeId, socketId, jewelType, treeData, isAby
 	return results
 end
 
+--- Return the replacement and addition outcomes that can actually occur on a
+--- specific notable/socket. Used by the planner's outcome picker.
+function TimelessPlannerSearch.GetCoreOutcomes(build, jewelType, socketId, nodeId)
+	local treeData = build.spec.tree
+	local isAbyss = jewelType.id >= 7
+	local zorathPath = jewelType.id == 11 and build.spec:GetShortestPathToClassStart(socketId) or nil
+	if jewelType.id == 11 and not zorathPath then
+		return { }
+	end
+
+	local seedMultiplier = jewelType.id == 5 and 20 or 1
+	local seen = { }
+	local outcomes = { }
+	for seed = data.timelessJewelSeedMin[jewelType.id] * seedMultiplier,
+			data.timelessJewelSeedMax[jewelType.id] * seedMultiplier,
+			seedMultiplier do
+		local abyssMods
+		if isAbyss then
+			abyssMods = data.readAbyssJewelLUT(seed, socketId, jewelType.id, zorathPath, build.spec.curAscendClassName)
+		end
+		for _, outcome in ipairs(getCoreResults(seed, nodeId, socketId, jewelType, treeData, isAbyss, abyssMods)) do
+			if outcome.key and not seen[outcome.key] then
+				seen[outcome.key] = true
+				outcomes[#outcomes + 1] = outcome
+			end
+		end
+	end
+	table.sort(outcomes, function(a, b)
+		return (a.dn or a.id) < (b.dn or b.id)
+	end)
+	return outcomes
+end
+
 function TimelessPlannerSearch.Run(build, config)
 	local treeData = build.spec.tree
 	local jewelType = config.jewelType
