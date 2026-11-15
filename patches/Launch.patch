@@ -1,0 +1,35 @@
+--- a/Launch.lua
++++ b/Launch.lua
+@@ -80,6 +80,19 @@
+ 		end
+ 	end
+ 
++	-- AI agent bridge (external assistant service polls this over localhost)
++	local agentBridge, agentErr = LoadModule("Modules/AgentBridge")
++	if agentBridge then
++		local initErr = PCall(agentBridge.Init, agentBridge)
++		if initErr then
++			self:ShowErrMsg("In AgentBridge Init: %s", initErr)
++		else
++			self.agentBridge = agentBridge
++		end
++	elseif agentErr then
++		self:ShowErrMsg("Error loading AgentBridge: %s", agentErr)
++	end
++
+ 	if not self.devMode and not firstRunFile then
+ 		-- Run a background update check if developer mode is off
+ 		self:CheckForUpdate(true)
+@@ -116,6 +129,12 @@
+ 				end
+ 				self:ShowErrMsg("In 'OnFrame': %s", errMsg)
+ 			end
++		end
++	end
++	if self.agentBridge then
++		local errMsg = PCall(self.agentBridge.Poll, self.agentBridge)
++		if errMsg then
++			ConPrintf("In AgentBridge Poll: %s", errMsg)
+ 		end
+ 	end
+ 	self.devModeAlt = self.devMode and IsKeyDown("ALT")

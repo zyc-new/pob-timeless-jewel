@@ -1,0 +1,59 @@
+--- a/Modules/AgentBridge.lua
++++ b/Modules/AgentBridge.lua
+@@ -691,6 +691,56 @@
+ 		end
+ 		return result
+ 	end,
++	timeless_scan = function(params)
++		local planner = LoadModule("Classes/TimelessJewelPlanner")
++		return planner.GetState(getBuild())
++	end,
++	timeless_open = function(params)
++		local planner = LoadModule("Classes/TimelessJewelPlanner")
++		planner.Show(getBuild())
++		return { ok = true }
++	end,
++	timeless_configure = function(params)
++		local planner = LoadModule("Classes/TimelessJewelPlanner")
++		local result, err = planner.Configure(getBuild(), params)
++		if not result then
++			return nil, err
++		end
++		return result
++	end,
++	timeless_search = function(params)
++		local planner = LoadModule("Classes/TimelessJewelPlanner")
++		local result, err = planner.Search(getBuild())
++		if not result then
++			return nil, err
++		end
++		return result
++	end,
++	timeless_preview = function(params)
++		local build = getBuild()
++		local state = build.timelessPlannerState
++		if not state then
++			return nil, "Planner state missing"
++		end
++		local seed = tonumber(params.seed)
++		if not seed then
++			return nil, "Missing seed"
++		end
++		local planner = LoadModule("Classes/TimelessJewelPlanner")
++		local result, err = planner.Preview(build, seed)
++		if not result then
++			return nil, err
++		end
++		return result
++	end,
++	timeless_next = function(params)
++		local planner = LoadModule("Classes/TimelessJewelPlanner")
++		local result, err = planner.Next(getBuild(), tonumber(params.direction) or 1)
++		if not result then
++			return nil, err
++		end
++		return result
++	end,
+ }
+ 
+ local function dispatch(request)

@@ -1,0 +1,46 @@
+--- a/Classes/TreeTab.lua
++++ b/Classes/TreeTab.lua
+@@ -188,11 +188,19 @@
+ 		self:FindTimelessJewel()
+ 	end)
+ 
++	-- Timeless Jewel Planner (new, independent from Find Timeless Jewel)
++	self.controls.timelessPlanner = new("ButtonControl", { "LEFT", self.controls.findTimelessJewel, "RIGHT" }, { 8, 0, 90, 20 }, "精准规划", function()
++		local ok, err = pcall(LoadModule("Classes/TimelessJewelPlanner"), self)
++		if not ok then
++			ConPrintf("Timeless Planner: %s", tostring(err))
++		end
++	end)
++
+ 	--Default index for Tattoos
+ 	self.defaultTattoo = { }
+ 
+ 	-- Show Node Power Checkbox
+-	self.controls.treeHeatMap = new("CheckBoxControl", { "LEFT", self.controls.findTimelessJewel, "RIGHT" }, { 130, 0, 20 }, "Show Node Power:", function(state)
++	self.controls.treeHeatMap = new("CheckBoxControl", { "LEFT", self.controls.timelessPlanner, "RIGHT" }, { 130, 0, 20 }, "Show Node Power:", function(state)
+ 		self.viewer.showHeatMap = state
+ 		self.controls.treeHeatMapStatSelect.shown = state
+ 
+@@ -397,6 +405,7 @@
+ 	
+ 	local widthSecondLineControls = self.controls.treeSearch.width + 8
+ 									+ self.controls.findTimelessJewel.width + self.controls.findTimelessJewel.x
++									+ self.controls.timelessPlanner.width + self.controls.timelessPlanner.x
+ 									+ self.controls.treeHeatMap.width + 130
+ 									+ self.controls.nodePowerMaxDepthSelect.width + self.controls.nodePowerMaxDepthSelect.x
+ 									+ (self.isCustomMaxDepth and (self.controls.nodePowerMaxDepthCustom.width + self.controls.nodePowerMaxDepthCustom.x) or 0)
+@@ -415,11 +424,11 @@
+ 
+ 	-- Check second line
+ 	if viewPort.width >= widthSecondLineControls + rightMargin then
+-		self.controls.treeHeatMap:SetAnchor("LEFT", self.controls.findTimelessJewel, "RIGHT", 130, 0)
++		self.controls.treeHeatMap:SetAnchor("LEFT", self.controls.timelessPlanner, "RIGHT", 130, 0)
+ 	else
+ 		linesHeight = linesHeight * 2
+-		self.controls.treeHeatMap:SetAnchor("TOPLEFT", self.controls.treeSearch, "BOTTOMLEFT", 124, 4)
+-		self.controls.powerReportList:SetAnchor("TOPLEFT", self.controls.treeHeatMap, "BOTTOMLEFT", -124, self.controls.treeHeatMap.height + 6)
++		self.controls.treeHeatMap:SetAnchor("TOPLEFT", self.controls.treeSearch, "BOTTOMLEFT", 224, 4)
++		self.controls.powerReportList:SetAnchor("TOPLEFT", self.controls.treeHeatMap, "BOTTOMLEFT", -224, self.controls.treeHeatMap.height + 6)
+ 	end
+ 
+ 	-- determine positions for convert line of controls

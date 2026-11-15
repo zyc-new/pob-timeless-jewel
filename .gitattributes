@@ -1,0 +1,5 @@
+*.patch text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.lua text eol=lf
+*.cmd text eol=crlf

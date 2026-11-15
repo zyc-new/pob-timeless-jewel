@@ -1,0 +1,85 @@
+--- a/Modules/Build.lua
++++ b/Modules/Build.lua
+@@ -75,6 +75,7 @@
+ 	self.xmlSectionList = { }
+ 	self.spectreList = { }
+ 	self.timelessData = { jewelType = { }, conquerorType = { }, devotionVariant1 = 1, devotionVariant2 = 1, jewelSocket = { }, fallbackWeightMode = { }, searchList = "", searchListFallback = "", searchResults = { }, sharedResults = { } }
++	self.timelessPlannerState = { jewelTypeId = 1, conquerorId = 1, socketId = nil, coreOutcomes = { }, wanted = { }, unwanted = { }, results = { }, checkedSeeds = { }, page = 1 }
+ 	self.viewMode = "TREE"
+ 	self.characterLevel = m_min(m_max(main.defaultCharLevel or 1, 1), 100)
+ 	self.targetVersion = liveTargetVersion
+@@ -991,6 +992,33 @@
+ 			self.timelessData.socketFilterDistance = tonumber(child.attrib.socketFilterDistance) or 0
+ 			self.timelessData.searchList = child.attrib.searchList
+ 			self.timelessData.searchListFallback = child.attrib.searchListFallback
++		elseif child.elem == "TimelessPlanner" then
++			self.timelessPlannerState = {
++				jewelTypeId = tonumber(child.attrib.jewelTypeId) or 1,
++				conquerorId = tonumber(child.attrib.conquerorId) or 1,
++				socketId = tonumber(child.attrib.jewelSocketId),
++				coreOutcomes = { },
++				wanted = { },
++				unwanted = { },
++				results = { },
++				checkedSeeds = { },
++				page = 1,
++			}
++			for _, plannerChild in ipairs(child) do
++				if plannerChild.elem == "Core" and plannerChild.attrib.nodeId then
++					local outcomes = { }
++					for id in (plannerChild.attrib.outcomes or ""):gmatch("[^,]+") do
++						outcomes[id] = true
++					end
++					self.timelessPlannerState.coreOutcomes[tonumber(plannerChild.attrib.nodeId)] = outcomes
++				elseif plannerChild.elem == "Path" and plannerChild.attrib.stat then
++					if plannerChild.attrib.polarity == "desired" then
++						self.timelessPlannerState.wanted[plannerChild.attrib.stat] = true
++					elseif plannerChild.attrib.polarity == "undesired" then
++						self.timelessPlannerState.unwanted[plannerChild.attrib.stat] = true
++					end
++				end
++			end
+ 		end
+ 	end
+ end
+@@ -1075,6 +1103,40 @@
+ 		}
+ 	}
+ 	t_insert(xml, timelessData)
++
++	local planner = self.timelessPlannerState
++	if planner then
++		local plannerElem = {
++			elem = "TimelessPlanner",
++			attrib = {
++				jewelTypeId = tostring(planner.jewelTypeId or 1),
++				conquerorId = tostring(planner.conquerorId or 1),
++				jewelSocketId = planner.socketId and tostring(planner.socketId) or nil,
++			},
++		}
++		for nodeId, outcomes in pairs(planner.coreOutcomes or { }) do
++			local ids = { }
++			for id in pairs(outcomes) do
++				t_insert(ids, tostring(id))
++			end
++			if #ids > 0 then
++				t_insert(plannerElem, {
++					elem = "Core",
++					attrib = {
++						nodeId = tostring(nodeId),
++						outcomes = table.concat(ids, ","),
++					},
++				})
++			end
++		end
++		for stat in pairs(planner.wanted or { }) do
++			t_insert(plannerElem, { elem = "Path", attrib = { stat = stat, polarity = "desired" } })
++		end
++		for stat in pairs(planner.unwanted or { }) do
++			t_insert(plannerElem, { elem = "Path", attrib = { stat = stat, polarity = "undesired" } })
++		end
++		t_insert(xml, plannerElem)
++	end
+ end
+ 
+ function buildMode:ResetModFlags()
