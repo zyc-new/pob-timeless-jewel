@@ -1,8 +1,22 @@
 # 20 给 AI 的永恒珠宝插件安装部署文档
 
+> 仓库：https://github.com/zyc-new/pob-timeless-jewel
 > 目标：让 AI 帮助用户安装 `timeless-jewel-patch` 包。
 > 适用：Windows、Path of Building Community **2.67.2**、PoE1 天赋树 **3.29**、中文 PoeCharm3。
 > 本文件只描述安装，不描述功能开发。
+
+## 0. 获取安装包
+
+```powershell
+git clone https://github.com/zyc-new/pob-timeless-jewel.git
+```
+
+也可以用仓库内：
+
+```text
+downloads/timeless-jewel-patch.zip
+downloads/pob-timeless-jewel-skill.zip
+```
 
 ## 1. AI 必须先确认的信息
 

@@ -1,5 +1,7 @@
 # PoB Timeless Jewel Planner
 
+仓库：https://github.com/zyc-new/pob-timeless-jewel
+
 Path of Building Community 的永恒珠宝精准查询插件。
 
 适用版本：
@@ -22,8 +24,8 @@ PoE1 天赋树 3.29
 
 ## 下载
 
-- [插件补丁包](downloads/timeless-jewel-patch.zip)
-- [自然语言 Skill 包](downloads/pob-timeless-jewel-skill.zip)
+- [插件补丁包](https://github.com/zyc-new/pob-timeless-jewel/raw/main/downloads/timeless-jewel-patch.zip)
+- [自然语言 Skill 包](https://github.com/zyc-new/pob-timeless-jewel/raw/main/downloads/pob-timeless-jewel-skill.zip)
 
 ## 安装
 
