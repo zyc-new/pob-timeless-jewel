@@ -53,7 +53,9 @@ $P = "$env:USERPROFILE\.dsh\skills\pob-timeless-jewel\scripts\planner.cmd"
     - `id` 可能已经是 `add:...`，写入 `coreOutcomes` 时直接使用该值；
 - `keystone`：已点亮 keystone；
 - `path`：已点亮过路小点；
-- `pathOptions`：过路点可选属性；
+- `wantedPathOptions`：过路点**可以出现**的主属性，只包含当前类型/孔位实际可达的替换结果；
+- `unwantedPathOptions`：过路点可能出现的全部属性，只包含当前类型/孔位实际可达的替换结果；
+- `pathOptions`：以上两者的合并列表（兼容字段；优先使用前两个）；
 - `wanted` / `unwanted`：当前配置；
 - `resultCount` / `firstSeeds` / `firstResults` / `previewSeed`；
   - `firstResults[]` 含 `seed`、`coreHits`、`coreTotal`、`socketId`。
@@ -171,10 +173,10 @@ $P = "$env:USERPROFILE\.dsh\skills\pob-timeless-jewel\scripts\planner.cmd"
 
 ### 第 4 步：确认过路点属性
 
-展示 `pathOptions` 中适合的常见属性，分别问：
+分别展示当前珠宝类型/孔位实际可达的属性，不要使用全量词缀表：
 
-- “过路点出现属性：每个被替换过路点的主属性必须在这里面”；
-- “过路点不出现属性：任意属性命中就淘汰”。
+- 过路点出现属性：从 `wantedPathOptions` 选择（每个被替换过路点的主属性必须在这里面）；
+- 过路点不出现属性：从 `unwantedPathOptions` 选择（任意属性命中就淘汰）。
 
 两边都可以为空。用户说“没有/不限制”就传空数组。
 

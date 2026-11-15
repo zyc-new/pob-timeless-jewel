@@ -309,7 +309,6 @@ function Planner.Open(treeTab)
 	local coreRows = { }
 	local keystoneRows = { }
 	local pathRows = { }
-	local statCatalog = { }
 
 	local function getJewelSocketList()
 		local sockets = { }
@@ -449,26 +448,24 @@ function Planner.Open(treeTab)
 		end
 	end
 
-	-- Build a stat catalogue from all legion nodes/additions.
-	local seenStats = { }
-	for _, node in pairs(treeData.legion.nodes) do
-		for key in pairs(node.stats or { }) do
-			seenStats[key] = true
-		end
+	-- Only offer path stats that can actually occur on a replacement in the
+	-- current jewel type/socket. Additions are intentionally excluded from
+	-- path constraints (they are reported on core rows instead).
+	local pathNodeIds = { }
+	for _, row in ipairs(pathRows) do
+		t_insert(pathNodeIds, row.node.id)
 	end
-	for _, addition in pairs(treeData.legion.additions) do
-		for key in pairs(addition.stats or { }) do
-			seenStats[key] = true
-		end
+	local wantedKeys, unwantedKeys = TimelessPlannerSearch.GetPathStatOptions(build, selectedType, selectedSocketId, pathNodeIds)
+	local wantedPathOptions = { { label = "选择属性...", key = nil } }
+	local unwantedPathOptions = { { label = "选择属性...", key = nil } }
+	for key in pairs(wantedKeys) do
+		t_insert(wantedPathOptions, { label = statLabel(key), key = key })
 	end
-	for key in pairs(seenStats) do
-		t_insert(statCatalog, { label = statLabel(key), key = key })
+	for key in pairs(unwantedKeys) do
+		t_insert(unwantedPathOptions, { label = statLabel(key), key = key })
 	end
-	t_sort(statCatalog, function(a, b) return a.label < b.label end)
-	local pathSelectOptions = { { label = "选择属性...", key = nil } }
-	for _, stat in ipairs(statCatalog) do
-		t_insert(pathSelectOptions, stat)
-	end
+	t_sort(wantedPathOptions, function(a, b) return a.label < b.label end)
+	t_sort(unwantedPathOptions, function(a, b) return a.label < b.label end)
 
 	-- Top controls
 	controls.typeLabel = new("LabelControl", { "TOPLEFT", nil, "TOPLEFT" }, { 20, 18, 0, 16 }, "^7珠宝类型:")
@@ -648,7 +645,7 @@ function Planner.Open(treeTab)
 
 	-- Path: wanted / unwanted
 	controls.wantedHeader = new("LabelControl", { "TOPLEFT", nil, "TOPLEFT" }, { 840, 80, 0, 16 }, "^7过路点出现属性")
-	controls.wantedSelect = new("DropDownControl", { "TOPLEFT", nil, "TOPLEFT" }, { 840, 100, 288, 20 }, pathSelectOptions, function(index, value)
+	controls.wantedSelect = new("DropDownControl", { "TOPLEFT", nil, "TOPLEFT" }, { 840, 100, 288, 20 }, wantedPathOptions, function(index, value)
 		if value and value.key then
 			state.wanted[value.key] = true
 			refreshPathLists()
@@ -665,7 +662,7 @@ function Planner.Open(treeTab)
 	end)
 
 	controls.unwantedHeader = new("LabelControl", { "TOPLEFT", nil, "TOPLEFT" }, { 840, 238, 0, 16 }, "^7过路点不出现属性")
-	controls.unwantedSelect = new("DropDownControl", { "TOPLEFT", nil, "TOPLEFT" }, { 840, 258, 288, 20 }, pathSelectOptions, function(index, value)
+	controls.unwantedSelect = new("DropDownControl", { "TOPLEFT", nil, "TOPLEFT" }, { 840, 258, 288, 20 }, unwantedPathOptions, function(index, value)
 		if value and value.key then
 			state.unwanted[value.key] = true
 			refreshPathLists()
@@ -1322,15 +1319,32 @@ function Planner.GetState(build)
 		t_insert(pathResult, { id = node.id, name = node.dn })
 	end
 
+	local pathNodeIds = { }
+	for _, row in ipairs(path) do
+		t_insert(pathNodeIds, row.node.id)
+	end
+	local wantedKeys, unwantedKeys = TimelessPlannerSearch.GetPathStatOptions(build, jewelType, socketId, pathNodeIds)
 	local pathOptions = { }
-	local seenLabels = { }
-	for key, label in pairs(STAT_LABELS) do
-		if not seenLabels[label] then
-			seenLabels[label] = true
+	local wantedPathOptions = { }
+	local unwantedPathOptions = { }
+	local seenPathKeys = { }
+	local function addPathOption(list, key)
+		local label = statLabel(key)
+		t_insert(list, { key = key, label = label })
+		if not seenPathKeys[key] then
+			seenPathKeys[key] = true
 			t_insert(pathOptions, { key = key, label = label })
 		end
 	end
+	for key in pairs(wantedKeys) do
+		addPathOption(wantedPathOptions, key)
+	end
+	for key in pairs(unwantedKeys) do
+		addPathOption(unwantedPathOptions, key)
+	end
 	table.sort(pathOptions, function(a, b) return a.label < b.label end)
+	table.sort(wantedPathOptions, function(a, b) return a.label < b.label end)
+	table.sort(unwantedPathOptions, function(a, b) return a.label < b.label end)
 
 	local wanted = { }
 	local unwanted = { }
@@ -1365,6 +1379,8 @@ function Planner.GetState(build)
 		keystone = keystoneResult,
 		path = pathResult,
 		pathOptions = pathOptions,
+		wantedPathOptions = wantedPathOptions,
+		unwantedPathOptions = unwantedPathOptions,
 		wanted = wanted,
 		unwanted = unwanted,
 		resultCount = #(state.results or { }),

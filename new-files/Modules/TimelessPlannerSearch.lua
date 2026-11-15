@@ -181,6 +181,46 @@ function TimelessPlannerSearch.GetCoreOutcomes(build, jewelType, socketId, nodeI
 	return outcomes
 end
 
+--- Return the stat keys that can actually occur on the selected path nodes
+--- for this jewel type/socket. Wanted uses primary stats; unwanted uses all
+--- stats of replacement outcomes.
+function TimelessPlannerSearch.GetPathStatOptions(build, jewelType, socketId, pathNodeIds)
+	local wanted = { }
+	local unwanted = { }
+	if not pathNodeIds or #pathNodeIds == 0 then
+		return wanted, unwanted
+	end
+	local treeData = build.spec.tree
+	local isAbyss = jewelType.id >= 7
+	local zorathPath = jewelType.id == 11 and build.spec:GetShortestPathToClassStart(socketId) or nil
+	if jewelType.id == 11 and not zorathPath then
+		return wanted, unwanted
+	end
+	local seedMultiplier = jewelType.id == 5 and 20 or 1
+	for seed = data.timelessJewelSeedMin[jewelType.id] * seedMultiplier,
+			data.timelessJewelSeedMax[jewelType.id] * seedMultiplier,
+			seedMultiplier do
+		local abyssMods
+		if isAbyss then
+			abyssMods = data.readAbyssJewelLUT(seed, socketId, jewelType.id, zorathPath, build.spec.curAscendClassName)
+		end
+		for _, nodeId in ipairs(pathNodeIds) do
+			for _, outcome in ipairs(getCoreResults(seed, nodeId, socketId, jewelType, treeData, isAbyss, abyssMods)) do
+				if outcome.kind == "replacement" then
+					local primary = getPrimaryStat(outcome)
+					if primary then
+						wanted[primary] = true
+					end
+					for stat in pairs(outcome.stats or { }) do
+						unwanted[stat] = true
+					end
+				end
+			end
+		end
+	end
+	return wanted, unwanted
+end
+
 function TimelessPlannerSearch.Run(build, config)
 	local treeData = build.spec.tree
 	local jewelType = config.jewelType
