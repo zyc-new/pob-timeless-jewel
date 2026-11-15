@@ -30,18 +30,25 @@ function TimelessJewelTrade.BuildUrl(config)
 	elseif config.conqueror.id > 1 then
 		conquerorTradeIds = { keystoneTradeIds[config.conqueror.id - 1] }
 	else
-		conquerorTradeIds = { keystoneTradeIds[1], keystoneTradeIds[2], keystoneTradeIds[3] }
+		-- "Any" used to emit three filters for the three conqueror variants,
+		-- which produced three nearly identical search terms. Use one
+		-- representative term; the seed range is what identifies the jewel.
+		conquerorTradeIds = { keystoneTradeIds[1] }
 	end
 
+	local seenSeeds = { }
 	for _, seed in ipairs(config.seeds or { }) do
-		for _, tradeId in ipairs(conquerorTradeIds) do
-			seedTrades[#seedTrades + 1] = {
-				id = tradeId,
-				value = {
-					min = seed,
-					max = seed,
-				},
-			}
+		if not seenSeeds[seed] then
+			seenSeeds[seed] = true
+			for _, tradeId in ipairs(conquerorTradeIds) do
+				seedTrades[#seedTrades + 1] = {
+					id = tradeId,
+					value = {
+						min = seed,
+						max = seed,
+					},
+				}
+			end
 		end
 	end
 	if #seedTrades == 0 then
